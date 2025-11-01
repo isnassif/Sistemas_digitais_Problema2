@@ -4,12 +4,23 @@ module ULA (
     input [3:0] seletor,        // 00: replicação, 01: decimação, 10: zoom_nn, 11: cópia direta
     output reg saida,
     output reg [18:0] rom_addr,
-    input [7:0] rom_data,
+    input [31:0] rom_pixel,
     output reg [18:0] ram_wraddr,
     output reg [7:0] ram_data,
     output reg ram_wren,
     output reg done
 );
+
+	// Registrador para armazenar o byte válido do pixel
+    reg [7:0] rom_data;
+
+    // Captura os 8 bits menos significativos do rom_pixel
+    always @(posedge clk or negedge reset) begin
+        if (!reset)
+            rom_data <= 8'd0;
+        else
+            rom_data <= rom_pixel[7:0];   // <-- apenas os 8 bits de interesse
+    end
 
     // Estados da máquina
     reg [3:0] state; // Aumentado para 3 bits para acomodar mais estados
