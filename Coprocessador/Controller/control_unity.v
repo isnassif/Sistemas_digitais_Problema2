@@ -11,12 +11,14 @@ module control_unity (
     output [7:0] bluem,
     output blank,
     output sync,
-    output clks
+    output clks,
+	 output [14:0] rom_addr,  // endereço da ROM (vai pro HPS)
+    input  [31:0] rom_data
 );
 
 	wire outclk_0;
 
-	pll_0002 pll_inst (
+	pll_inst pll_inst (
 		.refclk   (clk_50MHz),   //  refclk.clk
 		.rst      (1'b0),      //   reset.reset
 		.outclk_0 (outclk_0), // outclk0.clk
@@ -31,15 +33,15 @@ module control_unity (
     // Sincronização das chaves
 	reg [3:0] sw_sync, sw_sync2;
 
-always @(posedge clk_vga or negedge vga_reset) begin
-    if (!vga_reset) begin
-        sw_sync  <= 3'b000;
-        sw_sync2 <= 3'b000;
-    end else begin
-        sw_sync  <= sw;
-        sw_sync2 <= sw_sync;
-    end
-end
+	always @(posedge clk_vga or negedge vga_reset) begin
+		 if (!vga_reset) begin
+			  sw_sync  <= 3'b000;
+			  sw_sync2 <= 3'b000;
+		 end else begin
+			  sw_sync  <= sw;
+			  sw_sync2 <= sw_sync;
+		 end
+	end
 
     // parâmetros da imagem ORIGINAL
     parameter IMG_W = 160;
@@ -48,23 +50,23 @@ end
 
     // Parâmetros ampliados baseados no seletor
 	wire [9:0] IMG_W_AMP = (sw_sync == 4'b0000) ? IMG_W*FATOR :   // replicação
-								(sw_sync == 4'b1000) ? IMG_W*FATOR :
-                        (sw_sync == 4'b0001) ? IMG_W/FATOR :   // decimação
-                        (sw_sync == 4'b0010) ? IMG_W*FATOR :   // zoom_nn (2x)
-                        (sw_sync == 4'b0011) ? IMG_W/FATOR :
-								(sw_sync == 4'b1001) ? IMG_W/FATOR :
-								(sw_sync == 4'b1010) ? IMG_W*FATOR :
-							   (sw_sync == 4'b1011) ? IMG_W/FATOR :	
-                        IMG_W;
+	(sw_sync == 4'b1000) ? IMG_W*FATOR :
+									(sw_sync == 4'b0001) ? IMG_W/FATOR :   // decimação
+									(sw_sync == 4'b0010) ? IMG_W*FATOR :   // zoom_nn (2x)
+									(sw_sync == 4'b0011) ? IMG_W/FATOR :
+	(sw_sync == 4'b1001) ? IMG_W/FATOR :
+	(sw_sync == 4'b1010) ? IMG_W*FATOR :
+	  (sw_sync == 4'b1011) ? IMG_W/FATOR :
+									IMG_W;
 
-   wire [9:0] IMG_H_AMP = (sw_sync == 4'b0000 ) ? IMG_H*FATOR :
-                        (sw_sync == 4'b1000 ) ? IMG_H*FATOR :   // replicação
-                        (sw_sync == 4'b0001) ? IMG_H/FATOR :   // decimação
-                        (sw_sync == 4'b0010) ? IMG_H*FATOR :   // zoom_nn (2x)
-                        (sw_sync == 4'b0011) ? IMG_H/FATOR :
-								(sw_sync == 4'b1001) ? IMG_H/FATOR :
-								(sw_sync == 4'b1010) ? IMG_H*FATOR : 
-								(sw_sync == 4'b1011) ? IMG_H/FATOR :
+		wire [9:0] IMG_H_AMP = (sw_sync == 4'b0000 ) ? IMG_H*FATOR :
+									(sw_sync == 4'b1000 ) ? IMG_H*FATOR :   // replicação
+									(sw_sync == 4'b0001) ? IMG_H/FATOR :   // decimação
+									(sw_sync == 4'b0010) ? IMG_H*FATOR :   // zoom_nn (2x)
+									(sw_sync == 4'b0011) ? IMG_H/FATOR :
+	(sw_sync == 4'b1001) ? IMG_H/FATOR :
+	(sw_sync == 4'b1010) ? IMG_H*FATOR :
+	(sw_sync == 4'b1011) ? IMG_H/FATOR :
                         IMG_H;
     // Offsets
     reg [9:0] x_offset_reg, y_offset_reg;
@@ -92,7 +94,8 @@ end
     wire wr_en;
     wire copy_done;
 
-    ram2port framebuffer (
+    ram2port framebuffer
+	(
         .clock(outclk_0),
         .data(wr_data),
         .rdaddress(addr_reg),
@@ -102,22 +105,28 @@ end
     );
 
     // ROM
-    wire [7:0] rom_pixel;
-    wire [18:0] rom_addr;
+   // wire [7:0] rom_pixel;
+    //wire [18:0] rom_addr;
 
-    mem rom_image (
-        .address(rom_addr),
-        .clock(outclk_0),
-        .q(rom_pixel)
-    );
+	 /*
+    ram_primaria rom_ram_inst (
+		.clock(outclk_0),
+		.data(8'd0),             // não vamos escrever nada
+		.rdaddress(rom_addr[14:0]), // truncar para 15 bits (endereço máximo da IP)
+		.wraddress(15'd0),       // não usado
+		.wren(1'b0),             // leitura apenas
+		.q(rom_pixel)
+	);*/
 
     // copiador ROM → RAM
+	 
+	 
     ULA copier (
         .clk(clk_vga),
         .reset(vga_reset), // aqui só depende do reset físico
         .seletor(sw_sync),
         .rom_addr(rom_addr),
-        .rom_data(rom_pixel),
+        .rom_pixel(rom_data),
         .ram_wraddr(wr_addr),
         .ram_data(wr_data),
         .ram_wren(wr_en),
@@ -143,5 +152,6 @@ end
         .green(greenm),
         .blue(bluem)
     );
-
+	 
 endmodule
+	
