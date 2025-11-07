@@ -9,7 +9,7 @@
 
     .equ LW_BRIDGE_BASE, 0xFF200000
     .equ LW_BRIDGE_SPAN, 0x30000
-    .equ IMAGE_MEM_SIZE_DEFAULT, 0xC000    @ 49152 bytes - AJUSTE SE NECESSÁRIO
+    .equ IMAGE_MEM_SIZE_DEFAULT, 0xC000
     
     .equ ST_RESET, 7
     .equ ST_REPLICACAO, 0
@@ -23,6 +23,7 @@
     .equ ST_MED4, 11
     
     .equ O_RDWR, 0x2
+    .equ O_RDONLY, 0x0
     .equ O_SYNC, 0x101000
     .equ PROT_READ, 0x1
     .equ PROT_WRITE, 0x2
@@ -52,128 +53,135 @@
 @ ============================================================================
 
 carregarImagemMIF:
-    @ Argumentos: r0 = path (const char*)
-    @ Retorno: r0 = número de bytes carregados ou -1 em erro
-    
-    push    {r4-r11, lr}        @ Salva registradores
-    sub     sp, sp, #144        @ Aloca espaço na stack
+    push    {r4-r11, lr}
+    sub     sp, sp, #144
     
     mov     r4, r0              @ r4 = path
+    ldr     r11, =0xC000        @ r11 = IMAGE_MEM_SIZE
     
-    @ Carrega IMAGE_MEM_SIZE (do hps_0.h via define)
-    ldr     r11, =0xC000        @ r11 = IMAGE_MEM_SIZE (49152 bytes típico)
-                                 @ AJUSTE ESTE VALOR SE NECESSÁRIO!
+    @ ========================================
+    @ Alocar memória com malloc (mais seguro que brk direto)
+    @ ========================================
+    mov     r0, r11
+    bl      malloc
+    ldr     r6, =hps_img_buffer
+    str     r0, [r6]
+    mov     r7, r0              @ r7 = buffer alocado
     
-    @ FILE *img_file = fopen(path, "r");
+    cmp     r7, #0
+    beq     return_error
+    
+    @ ========================================
+    @ Abrir arquivo com fopen
+    @ ========================================
     mov     r0, r4
     ldr     r1, =mode_r
     bl      fopen
-    mov     r5, r0              @ r5 = img_file
+    mov     r5, r0              @ r5 = file pointer
     
-    @ if (!img_file) return -1;
     cmp     r5, #0
-    beq     return_error
+    beq     free_and_error
     
-    @ hps_img_buffer = malloc(IMAGE_MEM_SIZE);
-    mov     r0, r11             @ Usa o valor carregado
-    bl      malloc
-    ldr     r6, =hps_img_buffer
-    str     r0, [r6]            @ Salva o ponteiro em hps_img_buffer
-    mov     r7, r0              @ r7 = hps_img_buffer (ponteiro local)
+    @ ========================================
+    @ Variáveis de controle
+    @ ========================================
+    mov     r8, #0              @ r8 = index saída
+    mov     r10, sp             @ r10 = buffer linha
     
-    @ if (!hps_img_buffer) { fclose(img_file); return -1; }
-    cmp     r7, #0
-    beq     close_and_error
-    
-    @ int index = 0
-    mov     r8, #0              @ r8 = index
-    
-loop_fgets:
-    @ while (fgets(line, sizeof(line), img_file))
-    mov     r0, sp
+read_loop:
+    @ ========================================
+    @ Ler linha com fgets
+    @ ========================================
+    mov     r0, r10
     mov     r1, #128
     mov     r2, r5
     bl      fgets
     
     cmp     r0, #0
-    beq     loop_end
+    beq     read_done
     
+    @ ========================================
     @ Verificar strings a ignorar
-    mov     r0, sp
+    @ ========================================
+    mov     r0, r10
     ldr     r1, =str_content
-    bl      strstr
+    bl      my_strstr
     cmp     r0, #0
-    bne     loop_fgets
+    bne     read_loop
     
-    mov     r0, sp
+    mov     r0, r10
     ldr     r1, =str_begin
-    bl      strstr
+    bl      my_strstr
     cmp     r0, #0
-    bne     loop_fgets
+    bne     read_loop
     
-    mov     r0, sp
+    mov     r0, r10
     ldr     r1, =str_end
-    bl      strstr
+    bl      my_strstr
     cmp     r0, #0
-    bne     loop_fgets
+    bne     read_loop
     
-    mov     r0, sp
+    mov     r0, r10
     ldr     r1, =str_addr_radix
-    bl      strstr
+    bl      my_strstr
     cmp     r0, #0
-    bne     loop_fgets
+    bne     read_loop
     
-    mov     r0, sp
+    mov     r0, r10
     ldr     r1, =str_data_radix
-    bl      strstr
+    bl      my_strstr
     cmp     r0, #0
-    bne     loop_fgets
+    bne     read_loop
     
-    mov     r0, sp
+    mov     r0, r10
     ldr     r1, =str_width
-    bl      strstr
+    bl      my_strstr
     cmp     r0, #0
-    bne     loop_fgets
+    bne     read_loop
     
-    mov     r0, sp
+    mov     r0, r10
     ldr     r1, =str_depth
-    bl      strstr
+    bl      my_strstr
     cmp     r0, #0
-    bne     loop_fgets
+    bne     read_loop
     
-    @ if (sscanf(line, "%*x : %x", &value) == 1)
-    mov     r0, sp
-    ldr     r1, =format_str
-    add     r2, sp, #128
-    bl      sscanf
+    @ ========================================
+    @ Parse hexadecimal
+    @ ========================================
+    mov     r0, r10
+    bl      parse_mif_line
+    cmp     r0, #0
+    blt     read_loop
     
-    cmp     r0, #1
-    bne     loop_fgets
+    @ ========================================
+    @ Armazenar byte
+    @ ========================================
+    cmp     r8, r11
+    bge     read_loop
     
-    @ if (index < IMAGE_MEM_SIZE)
-    cmp     r8, r11             @ Compara com IMAGE_MEM_SIZE carregado
-    bge     loop_fgets
-    
-    @ hps_img_buffer[index++] = (unsigned char)value;
-    ldr     r9, [sp, #128]
-    strb    r9, [r7, r8]
+    strb    r0, [r7, r8]
     add     r8, r8, #1
     
-    b       loop_fgets
-    
-loop_end:
-    @ fclose(img_file);
+    b       read_loop
+
+read_done:
     mov     r0, r5
     bl      fclose
     
-    @ return index;
     mov     r0, r8
     add     sp, sp, #144
     pop     {r4-r11, pc}
-    
+
+free_and_error:
+    mov     r0, r7
+    bl      free
+    b       return_error
+
 close_and_error:
     mov     r0, r5
     bl      fclose
+    mov     r0, r7
+    bl      free
     
 return_error:
     mvn     r0, #0
@@ -183,242 +191,357 @@ return_error:
     .size carregarImagemMIF, .-carregarImagemMIF
 
 @ ============================================================================
+@ Função auxiliar: my_strstr
+@ ============================================================================
+my_strstr:
+    push    {r4-r7, lr}
+    mov     r4, r0              @ r4 = haystack
+    mov     r5, r1              @ r5 = needle
+    
+    @ Verifica se needle é vazia
+    ldrb    r6, [r5]
+    cmp     r6, #0
+    beq     strstr_found_start
+    
+strstr_outer:
+    ldrb    r6, [r4]
+    cmp     r6, #0
+    beq     strstr_not_found
+    
+    @ Compara caracteres
+    mov     r2, r4
+    mov     r3, r5
+    
+strstr_inner:
+    ldrb    r6, [r3]
+    cmp     r6, #0
+    beq     strstr_found
+    
+    ldrb    r7, [r2]
+    cmp     r7, #0
+    beq     strstr_not_found
+    
+    cmp     r6, r7
+    bne     strstr_next
+    
+    add     r2, r2, #1
+    add     r3, r3, #1
+    b       strstr_inner
+    
+strstr_next:
+    add     r4, r4, #1
+    b       strstr_outer
+    
+strstr_found_start:
+    mov     r0, r4
+    pop     {r4-r7, pc}
+    
+strstr_found:
+    mov     r0, r4
+    pop     {r4-r7, pc}
+    
+strstr_not_found:
+    mov     r0, #0
+    pop     {r4-r7, pc}
+
+@ ============================================================================
+@ Função auxiliar: parse_mif_line
+@ ============================================================================
+parse_mif_line:
+    push    {r4-r6, lr}
+    mov     r4, r0
+    
+    @ Procura ':'
+find_colon:
+    ldrb    r1, [r4]
+    cmp     r1, #0
+    beq     parse_invalid
+    
+    cmp     r1, #':'
+    beq     found_colon
+    
+    add     r4, r4, #1
+    b       find_colon
+    
+found_colon:
+    add     r4, r4, #1
+    
+    @ Pula espaços
+skip_spaces:
+    ldrb    r1, [r4]
+    cmp     r1, #' '
+    beq     skip_space_char
+    cmp     r1, #0x09
+    beq     skip_space_char
+    b       start_convert
+    
+skip_space_char:
+    add     r4, r4, #1
+    b       skip_spaces
+    
+start_convert:
+    @ Converte hex para int
+    mov     r5, #0              @ r5 = resultado
+    mov     r6, #0              @ r6 = contador de dígitos
+    
+convert_hex:
+    ldrb    r1, [r4]
+    
+    @ Verifica fim
+    cmp     r1, #0
+    beq     check_valid
+    cmp     r1, #' '
+    beq     check_valid
+    cmp     r1, #0x0A
+    beq     check_valid
+    cmp     r1, #0x0D
+    beq     check_valid
+    cmp     r1, #';'
+    beq     check_valid
+    cmp     r1, #0x09
+    beq     check_valid
+    
+    @ Converte dígito hex
+    cmp     r1, #'0'
+    blt     parse_invalid
+    cmp     r1, #'9'
+    ble     convert_digit
+    
+    @ Converte A-F ou a-f
+    orr     r1, r1, #0x20       @ Minúscula
+    cmp     r1, #'a'
+    blt     parse_invalid
+    cmp     r1, #'f'
+    bgt     parse_invalid
+    
+    sub     r1, r1, #'a'
+    add     r1, r1, #10
+    b       add_digit
+    
+convert_digit:
+    sub     r1, r1, #'0'
+    
+add_digit:
+    lsl     r5, r5, #4
+    add     r5, r5, r1
+    add     r4, r4, #1
+    add     r6, r6, #1
+    b       convert_hex
+
+check_valid:
+    @ Pelo menos 1 dígito deve ter sido lido
+    cmp     r6, #0
+    beq     parse_invalid
+    
+parse_done:
+    mov     r0, r5
+    pop     {r4-r6, pc}
+    
+parse_invalid:
+    mvn     r0, #0
+    pop     {r4-r6, pc}
+
+@ ============================================================================
 @ Função: mapearPonte
-@ Retorno: 0 em sucesso, -1 em erro
 @ ============================================================================
 
 mapearPonte:
-    push    {r4-r7, lr}         @ Salva registradores
+    push    {r4-r7, lr}
     
-    @ Carrega constantes
-    ldr     r4, =0xFF200000     @ LW_BRIDGE_BASE
-    ldr     r5, =0x30000        @ LW_BRIDGE_SPAN
+    ldr     r4, =0xFF200000
+    ldr     r5, =0x30000
     
     @ fd = open("/dev/mem", O_RDWR | O_SYNC);
-    ldr     r0, =dev_mem_path   @ r0 = "/dev/mem"
-    ldr     r1, =0x101002       @ r1 = O_RDWR | O_SYNC (0x2 | 0x101000)
+    ldr     r0, =dev_mem_path
+    ldr     r1, =0x101002
     bl      open
-    ldr     r6, =fd             @ r6 = &fd
-    str     r0, [r6]            @ fd = resultado do open
+    ldr     r6, =fd
+    str     r0, [r6]
     
-    @ if (fd == -1) return -1;
-    cmn     r0, #1              @ Compara com -1
+    cmn     r0, #1
     beq     mapear_error
     
-    mov     r7, r0              @ r7 = fd (salva para usar depois)
+    mov     r7, r0
     
-    @ LW_virtual = mmap(NULL, LW_BRIDGE_SPAN, PROT_READ | PROT_WRITE, MAP_SHARED, fd, LW_BRIDGE_BASE);
-    mov     r0, #0              @ NULL
-    mov     r1, r5              @ LW_BRIDGE_SPAN
-    mov     r2, #3              @ PROT_READ | PROT_WRITE (1 | 2)
-    mov     r3, #1              @ MAP_SHARED
-    str     r7, [sp, #-8]!      @ fd (5º argumento na stack)
-    str     r4, [sp, #4]        @ LW_BRIDGE_BASE (6º argumento na stack)
+    @ mmap
+    mov     r0, #0
+    mov     r1, r5
+    mov     r2, #3
+    mov     r3, #1
+    str     r7, [sp, #-8]!
+    str     r4, [sp, #4]
     bl      mmap
-    add     sp, sp, #8          @ Limpa argumentos da stack
+    add     sp, sp, #8
     
-    ldr     r6, =LW_virtual     @ r6 = &LW_virtual
-    str     r0, [r6]            @ LW_virtual = resultado do mmap
+    ldr     r6, =LW_virtual
+    str     r0, [r6]
     
-    @ if (LW_virtual == MAP_FAILED) return -1;
-    cmn     r0, #1              @ Compara com MAP_FAILED (-1)
+    cmn     r0, #1
     beq     mapear_error
     
-    mov     r4, r0              @ r4 = LW_virtual (base)
+    mov     r4, r0
     
-    @ IMAGE_MEM_ptr = (volatile unsigned char *)(LW_virtual + IMAGE_MEM_BASE);
+    @ IMAGE_MEM_ptr
     ldr     r1, =IMAGE_MEM_BASE_VAL
-    ldr     r1, [r1]            @ Carrega IMAGE_MEM_BASE
-    add     r1, r4, r1          @ LW_virtual + IMAGE_MEM_BASE
+    ldr     r1, [r1]
+    add     r1, r4, r1
     ldr     r2, =IMAGE_MEM_ptr
-    str     r1, [r2]            @ IMAGE_MEM_ptr = resultado
+    str     r1, [r2]
     
-    @ CONTROL_PIO_ptr = (volatile unsigned int *)(LW_virtual + CONTROL_PIO_BASE);
+    @ CONTROL_PIO_ptr
     ldr     r1, =CONTROL_PIO_BASE_VAL
-    ldr     r1, [r1]            @ Carrega CONTROL_PIO_BASE
-    add     r1, r4, r1          @ LW_virtual + CONTROL_PIO_BASE
+    ldr     r1, [r1]
+    add     r1, r4, r1
     ldr     r2, =CONTROL_PIO_ptr
-    str     r1, [r2]            @ CONTROL_PIO_ptr = resultado
+    str     r1, [r2]
     
-    @ return 0;
     mov     r0, #0
     pop     {r4-r7, pc}
     
 mapear_error:
-    mvn     r0, #0              @ r0 = -1
+    mvn     r0, #0
     pop     {r4-r7, pc}
 
     .size mapearPonte, .-mapearPonte
 
 @ ============================================================================
 @ Função: transferirImagemFPGA
-@ Argumentos: r0 = tamanho (int)
-@ Retorno: void
 @ ============================================================================
 
 transferirImagemFPGA:
-    push    {r4-r6, lr}         @ Salva registradores
+    push    {r4-r6, lr}
     
-    mov     r4, r0              @ r4 = tamanho
+    mov     r4, r0
     
-    @ memcpy((void *)IMAGE_MEM_ptr, hps_img_buffer, tamanho);
-    @ r0 = destino (IMAGE_MEM_ptr)
-    @ r1 = origem (hps_img_buffer)
-    @ r2 = tamanho
-    
-    @ Carrega IMAGE_MEM_ptr (destino)
     ldr     r5, =IMAGE_MEM_ptr
-    ldr     r0, [r5]            @ r0 = IMAGE_MEM_ptr (valor do ponteiro)
+    ldr     r0, [r5]
     
-    @ Carrega hps_img_buffer (origem)
     ldr     r5, =hps_img_buffer
-    ldr     r1, [r5]            @ r1 = hps_img_buffer (valor do ponteiro)
+    ldr     r1, [r5]
     
-    @ Tamanho
-    mov     r2, r4              @ r2 = tamanho
+    mov     r2, r4
     
-    @ Chama memcpy
     bl      memcpy
     
-    @ Retorno void (sem valor de retorno)
     pop     {r4-r6, pc}
 
     .size transferirImagemFPGA, .-transferirImagemFPGA
 
 @ ============================================================================
 @ Função: enviarComando
-@ Argumentos: r0 = codigo (int)
-@ Retorno: void
 @ ============================================================================
 
 enviarComando:
-    push    {r4, lr}            @ Salva registradores
+    push    {r4, lr}
     
-    mov     r4, r0              @ r4 = codigo (salva o argumento)
+    mov     r4, r0
     
-    @ *CONTROL_PIO_ptr = codigo;
-    ldr     r0, =CONTROL_PIO_ptr    @ Carrega endereço de CONTROL_PIO_ptr
-    ldr     r0, [r0]                @ r0 = valor do ponteiro CONTROL_PIO_ptr
-    str     r4, [r0]                @ Escreve o codigo na memória
+    ldr     r0, =CONTROL_PIO_ptr
+    ldr     r0, [r0]
+    str     r4, [r0]
     
-    @ Memory barrier (asm volatile("" ::: "memory");)
-    dmb     sy                  @ Data Memory Barrier - garante ordem das escritas
+    dmb     sy
     
-    @ usleep(10000);
-    ldr     r0, =10000          @ r0 = 10000 microssegundos
+    ldr     r0, =10000
     bl      usleep
     
-    @ Retorno void
     pop     {r4, pc}
 
     .size enviarComando, .-enviarComando
 
 @ ============================================================================
 @ Função: limparRecursos
-@ Retorno: void
 @ ============================================================================
 
 limparRecursos:
-    push    {r4-r6, lr}         @ Salva registradores
+    push    {r4-r6, lr}
     
-    @ if (hps_img_buffer) free(hps_img_buffer);
-    ldr     r4, =hps_img_buffer     @ Carrega endereço de hps_img_buffer
-    ldr     r0, [r4]                @ r0 = valor do ponteiro hps_img_buffer
-    cmp     r0, #0                  @ Verifica se é NULL
-    beq     limpar_skip_free        @ Se NULL, pula o free
+    ldr     r4, =hps_img_buffer
+    ldr     r0, [r4]
+    cmp     r0, #0
+    beq     limpar_skip_free
     
-    bl      free                    @ Chama free(hps_img_buffer)
+    bl      free
     
-    mov     r0, #0                  @ Zera o ponteiro
-    str     r0, [r4]                @ hps_img_buffer = NULL
+    mov     r0, #0
+    str     r0, [r4]
     
 limpar_skip_free:
-    @ if (LW_virtual != MAP_FAILED) munmap(LW_virtual, LW_BRIDGE_SPAN);
-    ldr     r5, =LW_virtual         @ Carrega endereço de LW_virtual
-    ldr     r0, [r5]                @ r0 = valor de LW_virtual
-    cmn     r0, #1                  @ Compara com MAP_FAILED (-1)
-    beq     limpar_skip_munmap      @ Se MAP_FAILED, pula o munmap
+    ldr     r5, =LW_virtual
+    ldr     r0, [r5]
+    cmn     r0, #1
+    beq     limpar_skip_munmap
     
-    ldr     r1, =0x30000            @ r1 = LW_BRIDGE_SPAN
-    bl      munmap                  @ Chama munmap(LW_virtual, LW_BRIDGE_SPAN)
+    ldr     r1, =0x30000
+    bl      munmap
     
-    mvn     r0, #0                  @ r0 = -1 (MAP_FAILED)
-    str     r0, [r5]                @ LW_virtual = MAP_FAILED
+    mvn     r0, #0
+    str     r0, [r5]
     
 limpar_skip_munmap:
-    @ if (fd != -1) close(fd);
-    ldr     r6, =fd                 @ Carrega endereço de fd
-    ldr     r0, [r6]                @ r0 = valor de fd
-    cmn     r0, #1                  @ Compara com -1
-    beq     limpar_skip_close       @ Se -1, pula o close
+    ldr     r6, =fd
+    ldr     r0, [r6]
+    cmn     r0, #1
+    beq     limpar_skip_close
     
-    bl      close                   @ Chama close(fd)
+    bl      close
     
-    mvn     r0, #0                  @ r0 = -1
-    str     r0, [r6]                @ fd = -1
+    mvn     r0, #0
+    str     r0, [r6]
     
 limpar_skip_close:
-    @ Retorno void
     pop     {r4-r6, pc}
 
     .size limparRecursos, .-limparRecursos
 
 @ ============================================================================
 @ Função: obterCodigoEstado
-@ Argumentos: r0 = opcao (int)
-@ Retorno: r0 = código do estado ou -1 se inválido
 @ ============================================================================
 
 obterCodigoEstado:
-    @ Verifica limites: opcao deve estar entre 1 e 10
     cmp     r0, #1
-    blt     codigo_invalido         @ Se opcao < 1, retorna -1
+    blt     codigo_invalido
     cmp     r0, #10
-    bgt     codigo_invalido         @ Se opcao > 10, retorna -1
+    bgt     codigo_invalido
     
-    @ Usa tabela de lookup
-    @ r0 contém o índice (1-10), ajusta para 0-9
-    sub     r0, r0, #1              @ r0 = opcao - 1
+    sub     r0, r0, #1
     
-    @ Carrega endereço da tabela
     ldr     r1, =tabela_codigos
     
-    @ Carrega o código correspondente (4 bytes por entrada)
-    ldr     r0, [r1, r0, lsl #2]    @ r0 = tabela_codigos[opcao-1]
+    ldr     r0, [r1, r0, lsl #2]
     
     bx      lr
     
 codigo_invalido:
-    mvn     r0, #0                  @ r0 = -1
+    mvn     r0, #0
     bx      lr
 
     .size obterCodigoEstado, .-obterCodigoEstado
 
 @ ============================================================================
-@ Tabela de códigos (lookup table)
+@ Tabela de códigos
 @ ============================================================================
 
     .align 2
 tabela_codigos:
-    .word   7       @ opcao 1:  ST_RESET
-    .word   0       @ opcao 2:  ST_REPLICACAO
-    .word   1       @ opcao 3:  ST_DECIMACAO
-    .word   2       @ opcao 4:  ST_ZOOMNN
-    .word   3       @ opcao 5:  ST_MEDIA
-    .word   4       @ opcao 6:  ST_COPIA_DIRETA
-    .word   8       @ opcao 7:  ST_REPLICACAO4
-    .word   9       @ opcao 8:  ST_DECIMACAO4
-    .word   10      @ opcao 9:  ST_ZOOMNN4
-    .word   11      @ opcao 10: ST_MED4
+    .word   7
+    .word   0
+    .word   1
+    .word   2
+    .word   3
+    .word   4
+    .word   8
+    .word   9
+    .word   10
+    .word   11
 
 @ ============================================================================
-@ Seção de dados (variáveis globais compartilhadas com C)
+@ Seção de dados
 @ ============================================================================
 
     .data
     .align 2
 
-@ Ponteiros e descritores de arquivo
     .global IMAGE_MEM_ptr
     .global CONTROL_PIO_ptr
     .global fd
@@ -426,46 +549,44 @@ tabela_codigos:
     .global hps_img_buffer
 
 IMAGE_MEM_ptr:
-    .word   0               @ volatile unsigned char *IMAGE_MEM_ptr = NULL
+    .word   0
 
 CONTROL_PIO_ptr:
-    .word   0               @ volatile unsigned int *CONTROL_PIO_ptr = NULL
+    .word   0
 
 fd:
-    .word   -1              @ int fd = -1
+    .word   -1
 
 LW_virtual:
-    .word   -1              @ void *LW_virtual = MAP_FAILED (-1)
+    .word   -1
 
 hps_img_buffer:
-    .word   0               @ unsigned char *hps_img_buffer = NULL
+    .word   0
 
-@ Constantes de endereço base (serão inicializadas pelo C)
     .global IMAGE_MEM_BASE_VAL
     .global CONTROL_PIO_BASE_VAL
 
 IMAGE_MEM_BASE_VAL:
-    .word   0               @ const unsigned int IMAGE_MEM_BASE_VAL
+    .word   0
 
 CONTROL_PIO_BASE_VAL:
-    .word   0               @ const unsigned int CONTROL_PIO_BASE_VAL
+    .word   0
 
-@ Constantes de tamanho de imagem
     .global EXPECTED_IMG_WIDTH
     .global EXPECTED_IMG_HEIGHT
     .global EXPECTED_IMG_SIZE
 
 EXPECTED_IMG_WIDTH:
-    .word   160             @ #define EXPECTED_IMG_WIDTH 160
+    .word   160
 
 EXPECTED_IMG_HEIGHT:
-    .word   120             @ #define EXPECTED_IMG_HEIGHT 120
+    .word   120
 
 EXPECTED_IMG_SIZE:
-    .word   19200           @ 160 * 120 = 19200
+    .word   19200
 
 @ ============================================================================
-@ Strings e constantes (seção read-only)
+@ Strings e constantes
 @ ============================================================================
 
     .section .rodata
@@ -497,6 +618,3 @@ str_width:
     
 str_depth:
     .asciz "DEPTH"
-    
-format_str:
-    .asciz "%*x : %x"
