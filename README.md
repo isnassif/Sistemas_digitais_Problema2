@@ -186,3 +186,18 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
     </ol>
   </section>
 
+<section id="referencias">
+  <h2>Referências</h2>
+  <ol>
+    <li>ALTERA. <em>DE1-SoC Computer System with ARM Cortex-A9 and FPGA Fabric – Technical Reference Manual.</em> Intel Corporation, 2019.</li>
+    <li>INTEL. <em>Embedded Peripherals IP User Guide.</em> Intel FPGA Documentation, 2021. Disponível em: 
+      <a href="https://www.intel.com/content/www/us/en/programmable/documentation.html" target="_blank">
+        https://www.intel.com/content/www/us/en/programmable/documentation.html
+      </a>.
+    </li>
+    <li>BARE-METAL Programming on ARM Cortex-A9 (HPS–FPGA System). Universidade Federal de Campina Grande – Laboratório de Sistemas Digitais, 2022.</li>
+    <li>ARM Limited. <em>ARM Architecture Reference Manual: ARMv7-A and ARMv7-R edition.</em> ARM, 2012.</li>
+    <li>INTEL FPGA University Program. <em>DE1-SoC Computer and Qsys System Design Tutorial.</em> Intel Education, 2020.</li>
+    <li>IEEE Computer Society. <em>Standard for SystemVerilog—Unified Hardware Design, Specification, and Verification Language (IEEE Std 1800-2017).</em> IEEE, 2017.</li>
+  </ol>
+</section>
