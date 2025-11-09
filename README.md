@@ -48,3 +48,178 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
     </ol>
   </section>
 
+  <section>
+    <h2>Estrutura de Memória e Mapeamento</h2>
+    <p>O HPS acessa diretamente periféricos da FPGA através do mapeamento do dispositivo <code>/dev/mem</code> para a região base da ponte LW. A área mapeada permite leitura/escrita dos registradores de controle e da memória de imagem.</p>
+
+  <table>
+      <thead>
+        <tr>
+          <th>Ponte / Registrador</th>
+          <th>Função Principal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>LW_virtual</code></td>
+          <td>Endereço virtual resultante do <code>mmap()</code> sobre a região da Lightweight Bridge.</td>
+        </tr>
+        <tr>
+          <td><code>CONTROL_PIO_ptr</code></td>
+          <td>Registrador usado para envio de códigos de operação (opcodes) à FPGA.</td>
+        </tr>
+        <tr>
+          <td><code>IMAGE_MEM_ptr</code></td>
+          <td>Ponte de memória compartilhada onde a imagem (bytes carregados do <code>.mif</code>) é colocada para que a FPGA leia/processa.</td>
+        </tr>
+        <tr>
+          <td><code>fd</code></td>
+          <td>Descriptor do <code>/dev/mem</code> usado para o mapeamento físico.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <strong>Observação:</strong> no assembly/C do projeto, a função <code>mapearPonte()</code> realiza a abertura de <code>/dev/mem</code>, chama <code>mmap()</code> e ajusta os ponteiros globais (<code>IMAGE_MEM_ptr</code>, <code>CONTROL_PIO_ptr</code>, etc.) para o espaço virtual retornado pelo <code>mmap</code>.
+    </div>
+  </section>
+
+  <section>
+    <h2>Códigos de Operação (Opcode)</h2>
+    <p>Os códigos abaixo correspondem às operações implementadas (ou previstas) na FPGA. Estes valores são escritos no registrador de controle para solicitar a operação.</p>
+
+  <table>
+      <thead>
+        <tr>
+          <th>Constante</th>
+          <th>Valor</th>
+          <th>Descrição</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ST_REPLICACAO</code></td>
+          <td><code>0</code></td>
+          <td>Replicação 2x (duplica pixels conforme algoritmo FPGA).</td>
+        </tr>
+        <tr>
+          <td><code>ST_DECIMACAO</code></td>
+          <td><code>1</code></td>
+          <td>Decimação 2x (downsampling / redução).</td>
+        </tr>
+        <tr>
+          <td><code>ST_ZOOMNN</code></td>
+          <td><code>2</code></td>
+          <td>Zoom por vizinho mais próximo (NN) 2x.</td>
+        </tr>
+        <tr>
+          <td><code>ST_MEDIA</code></td>
+          <td><code>3</code></td>
+          <td>Filtro de média (suavização) 2x.</td>
+        </tr>
+        <tr>
+          <td><code>ST_COPIA_DIRETA</code></td>
+          <td><code>4</code></td>
+          <td>Cópia direta da imagem (transferência sem processamento).</td>
+        </tr>
+        <tr>
+          <td><code>ST_RESET</code></td>
+          <td><code>7</code></td>
+          <td>Reinicializa o estado interno do coprocessador FPGA.</td>
+        </tr>
+        <tr>
+          <td><code>ST_REPLICACAO4</code></td>
+          <td><code>8</code></td>
+          <td>Replicação 4x.</td>
+        </tr>
+        <tr>
+          <td><code>ST_DECIMACAO4</code></td>
+          <td><code>9</code></td>
+          <td>Decimação 4x.</td>
+        </tr>
+        <tr>
+          <td><code>ST_ZOOMNN4</code></td>
+          <td><code>10</code></td>
+          <td>Zoom NN 4x.</td>
+        </tr>
+        <tr>
+          <td><code>ST_MED4</code></td>
+          <td><code>11</code></td>
+          <td>Média 4x.</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </section>
+
+  <section>
+    <h2>Principais Funções da API (HPS)</h2>
+    <p>A lógica HPS é composta por rotinas em Assembly (armv7) e código C que orquestram o fluxo. A seguir estão descrições resumidas das funções exportadas e seu comportamento esperado.</p>
+
+  <h3><code>carregarImagemMIF(path)</code></h3>
+    <p>Abre o arquivo <code>.mif</code>, ignora linhas de cabeçalho (palavras-chave como CONTENT, BEGIN, END, ADDRESS_RADIX, DATA_RADIX, WIDTH, DEPTH) e converte linhas de dados hexadecimais em bytes que são armazenados em um buffer alocado dinamicamente. Retorna o número de bytes lidos ou valor negativo em caso de erro.</p>
+
+  <h3><code>mapearPonte()</code></h3>
+    <p>Abre <code>/dev/mem</code>, faz <code>mmap()</code> da região base da LW Bridge (endereço base <code>0xFF200000</code>, span <code>0x30000</code>) e calcula os ponteiros virtuais para <code>IMAGE_MEM_ptr</code> e <code>CONTROL_PIO_ptr</code> com base nos offsets configurados (valores definidos em <code>hps_0.h</code>). Em caso de falha retorna erro negativo.</p>
+
+  <h3><code>transferirImagemFPGA(bytes)</code></h3>
+    <p>Copia os bytes do buffer HPS (onde <code>carregarImagemMIF</code> depositou os dados) para a região mapeada de memória da FPGA (<code>IMAGE_MEM_ptr</code>), normalmente usando <code>memcpy</code> em Assembly/C.</p>
+
+  <h3><code>enviarComando(codigo)</code></h3>
+    <p>Escreve o opcode recebido no endereço apontado por <code>CONTROL_PIO_ptr</code> para solicitar a operação correspondente na FPGA. Faz uma barreira de memória (dmb sy) e um pequeno <code>usleep</code> para sincronização.</p>
+
+  <h3><code>limparRecursos()</code></h3>
+    <p>Libera o buffer de imagem alocado, faz <code>munmap()</code> da região mapeada e fecha o descriptor do <code>/dev/mem</code>, garantindo que não haja vazamentos de recursos ao final da execução.</p>
+  </section>
+
+  <section>
+    <h2>Fluxo Geral de Execução</h2>
+    <p>O processo completo de uso do sistema segue a ordem abaixo:</p>
+    <ol>
+      <li>Inicialização: o HPS carrega e inicializa variáveis base (valores em <code>hps_0.h</code>), e chama <code>mapearPonte()</code> para preparar a comunicação.</li>
+      <li>Carregamento da imagem: <code>carregarImagemMIF</code> lê o arquivo <code>imagem.mif</code> e aloca um buffer com os bytes da imagem.</li>
+      <li>Transferência: <code>transferirImagemFPGA</code> copia os bytes para a memória da FPGA.</li>
+      <li>Execução: o usuário (interface em <code>main.c</code>) seleciona a operação via menu; o HPS obtém o opcode e chama <code>enviarComando</code>.</li>
+      <li>Processamento: a FPGA executa o algoritmo correspondente e atualiza a memória (ou sinaliza conclusão via flags, dependendo da implementação FPGA).</li>
+      <li>Finalização: após as operações, <code>limparRecursos</code> é chamado para desmapear e liberar recursos.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Códigos de Retorno (API HPS)</h2>
+    <p>A API pode definir códigos de retorno padronizados para indicar sucesso ou tipos de falha. A seguir uma proposta adaptada ao projeto:</p>
+
+  <table>
+      <thead>
+        <tr><th>Código</th><th>Significado</th><th>Descrição</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>0</code></td><td>Sucesso</td><td>Operação concluída com sucesso.</td></tr>
+        <tr><td><code>-1</code></td><td>Timeout</td><td>Espera por resposta/flag da FPGA excedeu o tempo permitido.</td></tr>
+        <tr><td><code>-2</code></td><td>Erro de Hardware</td><td>Flag de erro acionada no coprocessador (execução inválida ou falha interna).</td></tr>
+        <tr><td><code>-3</code></td><td>Falha de Comunicação</td><td>Erro ao mapear/ler <code>/dev/mem</code> ou problemas de acesso à ponte.</td></tr>
+        <tr><td><code>-4</code></td><td>Zoom Máximo</td><td>Limite de ampliação (zoom in) atingido na FPGA.</td></tr>
+        <tr><td><code>-5</code></td><td>Zoom Mínimo</td><td>Limite de redução (zoom out) atingido na FPGA.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Instruções de Compilação e Execução</h2>
+    <p>Compilar e executar no HPS (exemplo):</p>
+    <pre><code>gcc main.c funcoes.s -o processamento
+./processamento</code></pre>
+
+  <p>Observações importantes:</p>
+    <ul>
+      <li>As definições de endereços e offsets utilizados no mapeamento (por exemplo, valores em <code>hps_0.h</code>) devem ser consistentes com o design gerado pelo Platform Designer / Quartus.</li>
+      <li>As rotinas em Assembly dependem das chamadas de biblioteca C (fopen, fgets, mmap, munmap, memcpy, free, close). O link deve incluir as bibliotecas padrão do sistema.</li>
+      <li>Execute o binário com permissões que permitam acesso a <code>/dev/mem</code> (geralmente é necessário executar como root ou configurar capacidades apropriadas).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Conclusão</h2>
+    <p>O sistema fornece uma interface de baixo nível e determinística entre o processador HPS e a FPGA, permitindo que algoritmos de processamento de imagens sejam executados no hardware com controle e orquestração pelo software. A abordagem de mapeamento de memória associada ao protocolo de opcodes é simples e eficiente, e permite expansão com novos algoritmos e sinais de status (flags) conforme a evolução do coprocessador.</p>
+  </section>
+
