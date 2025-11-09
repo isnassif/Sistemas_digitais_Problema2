@@ -9,3 +9,8 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
 <p>
   A segunda etapa, descrita neste repositório, tem como objetivo automatizar esse controle por meio de software, integrando o Hard Processor System (HPS) ao coprocessador via ponte Avalon (FPGA–HPS). Para isso, foi desenvolvida uma API em Assembly ARM, que envia instruções e dados diretamente à FPGA por meio de endereços mapeados em memória
 </p>
+
+<div align="center">
+    <img src="diagramas/media_blocos.gif"><br>
+    <strong>GIF: Funcionamento de Média de Blocos. Fator:2 e Matriz 4 x 4.</strong><br><br>
+  </div>
