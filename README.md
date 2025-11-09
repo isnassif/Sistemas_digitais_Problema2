@@ -10,6 +10,7 @@
     <li><a href="#opcodes">Códigos de Operação (Opcode)</a></li>
     <li><a href="#funcoes">Principais Funções da API (HPS)</a></li>
     <li><a href="#fluxo">Fluxo Geral de Execução</a></li>
+    <li><a href="#analise-resultados">Análise de resultados</a></li>
     <li><a href="#referencias">Referências</a></li>
   </ul>
 </nav>
@@ -205,6 +206,15 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
       <li>Finalização: após as operações, limparRecursos é chamado para desmapear e liberar recursos.</li>
     </ol>
   </section>
+
+  section id="analise-resultados">
+  <h2>Análise dos Resultados Alcançados</h2>
+  <p>
+    A integração entre o código em Assembly executado no processador ARM (HPS) e a lógica implementada na FPGA apresentou resultados consistentes e estáveis, confirmando o correto funcionamento da comunicação através do barramento Lightweight (LW Bridge). O protocolo de envio de comandos demonstrou eficiência e sincronismo, garantindo que as instruções fossem transmitidas, processadas e concluídas pela FPGA sem ocorrência de falhas ou perda de sinal. Durante a fase de testes, verificou-se que as rotinas de escrita e leitura dos registradores mapeados em memória responderam de maneira previsível e confiável. O envio de instruções pelo registrador de controle e a leitura dos sinais de status demonstraram total compatibilidade com a lógica desenvolvida em Verilog, confirmando o correto alinhamento entre hardware e software. A temporização aplicada entre os comandos também se mostrou adequada, permitindo a conclusão das operações de forma estável e sem interferências entre ciclos consecutivos. O sistema de carregamento de imagem funcionou conforme esperado, possibilitando a leitura completa do arquivo e o envio dos dados para a FPGA. Essa etapa foi essencial para validar o fluxo de comunicação e o endereçamento correto da memória compartilhada, garantindo que os dados processados correspondessem integralmente à imagem original. O controle de execução das operações foi testado por meio de diferentes códigos de operação, cada um correspondendo a funções específicas no coprocessador, e todos apresentaram resultados consistentes com a lógica projetada. Além da validação funcional, o comportamento do sistema demonstrou baixo tempo de resposta e alta previsibilidade, características fundamentais para aplicações de processamento em tempo real. A execução direta em Assembly contribuiu para uma comunicação de baixo nível mais precisa, eliminando camadas intermediárias e permitindo maior controle sobre o hardware. Como possibilidades de aprimoramento, destaca-se a implementação de um controle mais sofisticado para a transferência de blocos de dados, permitindo o envio parcial de regiões específicas da imagem, por exemplo. Também se prevê o desenvolvimento de uma camada de software em linguagem C, destinada a oferecer uma interface interativa ao usuário, facilitando a seleção de comandos e a análise dos resultados diretamente no HPS. 
+  <p>
+    Os resultados obtidos comprovam a eficiência do que foi proposto, demonstrando que a arquitetura baseada na cooperação entre HPS e FPGA é capaz de executar operações de processamento de imagem de maneira confiável, rápida e totalmente sincronizada. Dessa forma, o sistema desenvolvido estabelece uma base sólida para implementações futuras e aplicações de maior complexidade no campo do processamento digital de imagens em hardware reconfigurável.
+  </p>
+</section>
 
 <section id="referencias">
   <h2>Referências</h2>
