@@ -11,6 +11,6 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
 </p>
 
 <div align="center">
-    <img src="diagramas/media_blocos.gif"><br>
+    <img src="Captura de tela 2025-11-06 192558.png"><br>
     <strong>GIF: Funcionamento de Média de Blocos. Fator:2 e Matriz 4 x 4.</strong><br><br>
   </div>
