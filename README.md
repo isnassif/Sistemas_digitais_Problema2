@@ -157,7 +157,7 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
     <h2>Principais Funções da API (HPS)</h2>
     <p>A lógica HPS é composta por rotinas em Assembly (armv7) e código C que orquestram o fluxo. A seguir estão descrições resumidas das funções exportadas e seu comportamento esperado.</p>
 
-<h3><carregarImagemMIF</h3>
+<h3>carregarImagemMIF</h3>
     <p>Abre o arquivo <code>.mif</code>, ignora linhas de cabeçalho (palavras-chave como CONTENT, BEGIN, END, ADDRESS_RADIX, DATA_RADIX, WIDTH, DEPTH) e converte linhas de dados hexadecimais em bytes que são armazenados em um buffer alocado dinamicamente. Retorna o número de bytes lidos ou valor negativo em caso de erro.</p>
 
   <h3>mapearPonte</h3>
