@@ -79,7 +79,7 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
       </tbody>
     </table>
 
-    <div class="note">
+  <div class="note">
       <strong>Observação:</strong> no assembly/C do projeto, a função <code>mapearPonte()</code> realiza a abertura de <code>/dev/mem</code>, chama <code>mmap()</code> e ajusta os ponteiros globais (<code>IMAGE_MEM_ptr</code>, <code>CONTROL_PIO_ptr</code>, etc.) para o espaço virtual retornado pelo <code>mmap</code>.
     </div>
   </section>
