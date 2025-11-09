@@ -1,4 +1,20 @@
 # Problema 2 – Integração da API em Assembly com o coprocesador gráfico
+
+<nav>
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#descricao">Descrição do Projeto</a></li>
+    <li><a href="#arquitetura">Arquitetura e Integração do Projeto com a API (HPS)</a></li>
+    <li><a href="#comunicacao">Comunicação entre o FPGA e o Computador</a></li>
+    <li><a href="#memoria">Estrutura de Memória e Mapeamento</a></li>
+    <li><a href="#opcodes">Códigos de Operação (Opcode)</a></li>
+    <li><a href="#funcoes">Principais Funções da API (HPS)</a></li>
+    <li><a href="#fluxo">Fluxo Geral de Execução</a></li>
+    <li><a href="#referencias">Referências</a></li>
+  </ol>
+</nav>
+
+
 <h2>Descrição do Projeto</h2>
 <p>
 Esse projeto teve como objetivo o desenvolvimento de um módulo para redimensionamento de imagens(zoom e downscale) em um sistema de vigilância de tempo real, utilizando a placa DE1-SoC. 
