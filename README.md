@@ -14,3 +14,5 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
     <img src="Captura de tela 2025-11-06 192558.png"><br>
     <strong>Diagrama introdutório do caminho tomado pelo programa após a API.</strong><br><br>
   </div>
+
+  <h2>Arquitetura e integração do projeto com a API</h2>
