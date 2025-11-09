@@ -42,7 +42,7 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
   <h2>Comunicação entre o FPGA e o Computador</h2>
     <p>Para que se tornasse possível a comunicação entre o FPGA e o computador, foi necessário utilizar o protocolo HPS (Hard Processor System), responsável por passar as informações do computador para a placa utilizada. Essa troca de informações entre o HPS e a FPGA é realizada por registradores mapeados no espaço de memória da ponte leve (Lightweight Bridge). O protocolo segue três etapas principais: envio da instrução, execução na FPGA e sincronização/finalização.</p>
     <ol>
-      <li><strong>Envio do comando de instrução</strong>: o HPS escreve o código da operação desejada (opcode) no registrador de controle (<code>CONTROL_PIO_ptr</code>), indicando qual algoritmo a FPGA deve executar.</li>
+      <li><strong>Envio do comando de instrução</strong>: o HPS escreve o código da operação desejada (opcode) no registrador de controle (<code>CONTROL_PIO_ptr</code>), no hps, instanciando como pio_led, indicando qual algoritmo a FPGA deve executar.</li>
       <li><strong>Ativação e execução</strong>: a FPGA interpreta o opcode e processa os dados de imagem já presentes na memória compartilhada.</li>
       <li><strong>Sincronização e finalização</strong>: o HPS aguarda um curto intervalo para garantir que a execução na FPGA tenha sido iniciada/concluída e que os dados estejam estáveis.</li>
     </ol>
@@ -79,8 +79,7 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
       </tbody>
     </table>
 
-  <div class="note">
-      <strong>Observação:</strong> no assembly/C do projeto, a função <code>mapearPonte()</code> realiza a abertura de <code>/dev/mem</code>, chama <code>mmap()</code> e ajusta os ponteiros globais (<code>IMAGE_MEM_ptr</code>, <code>CONTROL_PIO_ptr</code>, etc.) para o espaço virtual retornado pelo <code>mmap</code>.
+  <p></strong> no assembly/C do projeto, a função <code>mapearPonte()</code> realiza a abertura de <code>/dev/mem</code>, chama <code>mmap()</code> e ajusta os ponteiros globais (<code>IMAGE_MEM_ptr</code>, <code>CONTROL_PIO_ptr</code>, etc.) para o espaço virtual retornado pelo <code>mmap</code>.
     </div>
   </section>
 
