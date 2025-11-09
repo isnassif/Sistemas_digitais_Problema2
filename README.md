@@ -2,7 +2,7 @@
 
 <nav>
   <h2>Sumário</h2>
-  <ol>
+  <ul>
     <li><a href="#descricao">Descrição do Projeto</a></li>
     <li><a href="#arquitetura">Arquitetura e Integração do Projeto com a API (HPS)</a></li>
     <li><a href="#comunicacao">Comunicação entre o FPGA e o Computador</a></li>
@@ -11,7 +11,7 @@
     <li><a href="#funcoes">Principais Funções da API (HPS)</a></li>
     <li><a href="#fluxo">Fluxo Geral de Execução</a></li>
     <li><a href="#referencias">Referências</a></li>
-  </ol>
+  </ul>
 </nav>
 
 
