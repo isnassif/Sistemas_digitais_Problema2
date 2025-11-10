@@ -171,7 +171,24 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
     </table>
 
   <p>Cada um desses opcodes é decocificado e associado a uma sequência de números binários, responsável por ativar cada uma dos algoritmos, vale ressaltar que, o bit mais significativo é o responsável por definir o fator do algoritmo, os demais, a seleção do algoritmo.</p>
+  <h2>Resumo dos arquivos necessários para execução.</h2>
+  <h3>api.h</h3>
+  <p>Função: Cabeçalho que declara todas as funções e variáveis globais da API Assembly.
 
+-> Expõe os símbolos definidos em Assembly (EXPECTED_IMG_WIDTH, hps_img_buffer, mapearPonte, etc.).
+
+-> Serve de “ponte” entre o código C (main.c) e as implementações em Assembly (funcoes.s).</p>
+<h3>hps_0.h</h3>
+<p>Função: Cabeçalho gerado automaticamente pelo Qsys/Platform Designer.
+-> Define os endereços base de cada periférico do sistema (PIO_LED, ONCHIP_MEMORY2_1, etc.).
+
+-> O main.c lê ONCHIP_MEMORY2_1_BASE e PIO_LED_BASE daqui.</p>
+<h3>makefile</h3>
+<p>Função: Automatiza o processo de compilação, execução e limpeza do projeto, simplificando o uso no terminal</p>
+<h3>main.c</h3>
+<p>Função: Aplicação de controle em alto nível.Interface de escolha.</p>
+<h3>funcoes.s(API)</h3>
+<p>Função: Implementação completa da API em Assembly ARMv7, com integração direta ao hardware via /dev/mem. No próximo tópico as funções desse arquivo serão mais apronfudadas.</p>
   </section>
 
   <section id="funcoes">
