@@ -8,6 +8,7 @@
     <li><a href="#comunicacao">Comunicação entre o FPGA e o Computador</a></li>
     <li><a href="#memoria">Estrutura de Memória e Mapeamento</a></li>
     <li><a href="#opcodes">Códigos de Operação (Opcode)</a></li>
+    <li><a href="#resumo">Resumo dos arquivos necessários para execução</a></li>
     <li><a href="#funcoes">Principais Funções da API (HPS)</a></li>
     <li><a href="#fluxo">Fluxo Geral de Execução</a></li>
     <li><a href="#analise-resultados">Análise de resultados</a></li>
@@ -171,6 +172,7 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
     </table>
 
   <p>Cada um desses opcodes é decocificado e associado a uma sequência de números binários, responsável por ativar cada uma dos algoritmos, vale ressaltar que, o bit mais significativo é o responsável por definir o fator do algoritmo, os demais, a seleção do algoritmo.</p>
+  <section id="resumo">
   <h2>Resumo dos arquivos necessários para execução.</h2>
   <h3>api.h</h3>
   <p>Função: Cabeçalho que declara todas as funções e variáveis globais da API Assembly.
