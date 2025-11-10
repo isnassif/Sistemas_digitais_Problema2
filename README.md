@@ -30,7 +30,7 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
 </p>
 
 <div align="center">
-    <img src="Captura de tela 2025-11-06 192558.png"><br>
+    <img src="diagramas/Captura de tela 2025-11-06 192558.png"><br>
     <strong>Diagrama introdutório do caminho tomado pelo programa após a API.</strong><br><br>
   </div>
 </section>
