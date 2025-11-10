@@ -53,7 +53,7 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
   <p>-> Aguardar o término do processamento e liberar recursos.</p>
   <p>A comunicação entre as partes é feita por PIOs(Parallel I/O) configurados no Platform Designer, que são mapeados em endereços físicos dentro do espaço do LW Bridge (0xFF200000).</p>
   <div align="center">
-    <img src="diagrama2.png"><br>
+    <img src="diagramas/diagrama2.png"><br>
     <strong>Fluxo de operação.</strong><br><br>
   </div>
   </section>
