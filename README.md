@@ -224,7 +224,7 @@ Esse projeto teve como objetivo o desenvolvimento de um módulo para redimension
     </ol>
   </section>
 
-  section id="analise-resultados">
+  <section id="analise-resultados">
   <h2>Análise dos Resultados Alcançados</h2>
    <p>
     Durante a fase de testes, verificou-se que as rotinas de escrita e leitura dos registradores mapeados em memória responderam de maneira previsível e confiável. O envio de instruções pelo registrador de controle e a leitura dos sinais de status demonstraram total compatibilidade com a lógica desenvolvida em Verilog, confirmando o correto alinhamento entre hardware e software. A temporização aplicada entre os comandos também se mostrou adequada, permitindo a conclusão das operações de forma estável e sem interferências entre ciclos consecutivos.
